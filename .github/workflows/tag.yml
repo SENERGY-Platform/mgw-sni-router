@@ -1,0 +1,41 @@
+name: 'Tagged Docker Image'
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+jobs:
+  # Builds each platform on a native runner of its own, arm64 without QEMU, and merges
+  # both into one manifest under every tag below.
+  multi:
+    uses: docker/github-builder/.github/workflows/build.yml@v1
+    permissions:
+      contents: read
+      id-token: write # signs the provenance attestation
+    with:
+      output: image
+      push: true
+      platforms: linux/amd64,linux/arm64
+      file: ./Dockerfile
+      build-args: |
+        BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
+      meta-images: |
+        smartenergyplatform/mgw-sni-router
+        ghcr.io/senergy-platform/mgw-sni-router
+      meta-tags: |
+        type=raw,value=latest
+        type=raw,value=${{ github.ref_name }}
+      meta-flavor: |
+        latest=false
+    secrets:
+      registry-auths: |
+        - registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        - registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT }}
